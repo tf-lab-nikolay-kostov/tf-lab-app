@@ -29,7 +29,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y openjdk-8-jre-headless
           pip3 install pytest pytest-xdist
-          pip3 install zapcli
+          pip3 install zapcli "urllib3<2"
 
       - name: Install OWASP ZAP
         run: |
@@ -59,9 +59,20 @@ jobs:
 
       - name: Start ZAP
         run: |
-          AUTH_TOKEN=$(curl -XPOST -H 'Content-Type: application/json' "http://localhost:8888/auth/login" -d "{\"username\": \"${{ secrets.USERNAME }}\", \"password\":\"${{ secrets.PASSWORD }}\"}" | jq -r ".token")
-          echo "ZAP_AUTH_HEADER_VALUE=Bearer\ $AUTH_TOKEN" >> $GITHUB_ENV
-          echo "ZAP_AUTH_HEADER=Authorization" >> $GITHUB_ENV
+          AUTH_RESPONSE=$(curl -s -X POST \
+            -H 'Content-Type: application/json' \
+            "http://localhost:8888/auth/login" \
+            -d "{\"username\":\"${{ secrets.USERNAME }}\",\"password\":\"${{ secrets.PASSWORD }}\"}")
+
+          AUTH_TOKEN=$(echo "$AUTH_RESPONSE" | jq -r '.accessToken // .token // empty')
+
+          if [ -n "$AUTH_TOKEN" ]; then
+            echo "ZAP_AUTH_HEADER_VALUE=Bearer $AUTH_TOKEN" >> "$GITHUB_ENV"
+            echo "ZAP_AUTH_HEADER=Authorization" >> "$GITHUB_ENV"
+          else
+            echo "Warning: application login returned no token; continuing with an unauthenticated ZAP scan."
+          fi
+
           $ZAP_PATH/zap.sh -daemon -host 0.0.0.0 -port 8090 -config api.disablekey=true &
           sleep 30
 
@@ -76,4 +87,4 @@ jobs:
         if: always()
         run: |
           zap-cli -p 8090 shutdown || true
-          kill "$(lsof -t -i:3123)" || true
+          kill "$(lsof -t -i:8888)" || true

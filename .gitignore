@@ -1,6 +1,5 @@
 # Custom configs
 yarn.lock
-package-lock.json
 
 # Output files
 dist

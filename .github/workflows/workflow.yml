@@ -27,7 +27,8 @@ jobs:
       - name: Set up environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-8-jre-headless jq
+          sudo apt-get install -y openjdk-17-jre-headless jq
+          java -version
           pip3 install pytest pytest-xdist
 
       - name: Install OWASP ZAP
